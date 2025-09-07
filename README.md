@@ -1,4 +1,7 @@
-# DbD 1v1 Tracker (Dark)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Status](https://img.shields.io/badge/status-active-success)
+
+# DbD 1v1 Tracker 
 
 Single-file web app to track Dead by Daylight 1v1 results.
 
