@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DbD 1v1 Tracker — Dark</title>
+<meta name="color-scheme" content="dark" />
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: rgba(255,255,255,0.06);
+    --panel-2: rgba(255,255,255,0.08);
+    --panel-border: rgba(255,255,255,0.10);
+    --text: #e7e9ef;
+    --text-dim: #a8adbd;
+    --accent: #7c8cff;
+    --accent-2: #88e0c3;
+    --danger: #ff6b6b;
+    --ok: #8ee68a;
+    --warn: #ffcc66;
+    --shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; padding: 24px;
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial;
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(124,140,255,0.14), transparent 60%),
+      radial-gradient(1200px 600px at 110% 10%, rgba(136,224,195,0.16), transparent 60%),
+      var(--bg);
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  header { display:flex; align-items:center; gap:12px; margin-bottom: 18px; }
+  .logo { width:38px; height:38px; border-radius:12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
+  h1 { margin: 0; font-weight: 700; letter-spacing: 0.2px; }
+  .muted { color: var(--text-dim); font-size: 12px; }
+  .split { height: 12px; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px; box-shadow: var(--shadow);
+    backdrop-filter: blur(6px);
+  }
+
+  form, .controls { display: grid; gap: 12px; grid-template-columns: repeat(12, 1fr); align-items: end; }
+  form { padding: 16px; }
+  form > .col-3 { grid-column: span 3; }
+  form > .col-4 { grid-column: span 4; }
+  form > .col-6 { grid-column: span 6; }
+  form > .col-12 { grid-column: span 12; }
+
+  label { display:block; font-size:12px; color: var(--text-dim); margin: 2px 0 6px; }
+  input, select, button {
+    width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--panel-border);
+    background: rgba(255,255,255,0.06); color: var(--text); outline:none;
+  }
+  input::placeholder { color: #9aa2b4; opacity: .8; }
+  select {
+    appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--text) 50%),
+      linear-gradient(135deg, var(--text) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 16px, calc(100% - 12px) 16px;
+    background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
+    color: var(--text); background: var(--panel-2); border-color: var(--panel-border);
+  }
+  /* Make popup rows readable on dark */
+  select option, select optgroup { color: var(--text); background: var(--bg); }
+  select:focus { outline: none; box-shadow: 0 0 0 3px rgba(136,224,195,.20); border-color: var(--accent-2); }
+  @supports (color-scheme: dark) { select, option { color-scheme: dark; } }
+
+  button { cursor:pointer; border:1px solid var(--panel-border); transition: transform .05s ease, filter .15s ease; }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: translateY(1px); }
+  .btn-accent { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0d0f12; border:none; font-weight: 600; }
+  .btn-danger { color: #fff; background: var(--danger); border: none; }
+  .btn-ghost  { background: transparent; border:1px dashed var(--panel-border); }
+
+  .controls { padding: 12px 16px; margin-top: 12px; }
+  .controls > * { grid-column: span 3; }
+  .controls .group { display:flex; gap:8px; grid-column: span 6; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    position: sticky; top: 0; background: var(--panel-2);
+    backdrop-filter: blur(6px); border-bottom: 1px solid var(--panel-border);
+    padding: 10px; text-align: left; font-weight: 600; user-select: none; cursor: pointer;
+  }
+  tbody td { padding: 12px 10px; border-bottom: 1px solid var(--panel-border); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.04); }
+
+  .pill { display:inline-block; font-size:11px; padding:3px 8px; border-radius:999px; background:#151822; border:1px solid var(--panel-border); }
+  .pill.win  { background: rgba(142,230,138,0.15); border-color: rgba(142,230,138,0.35); }
+  .pill.loss { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.35); }
+  .pill.draw { background: rgba(124,140,255,0.15); border-color: rgba(124,140,255,0.35); }
+  .pill.side { background: rgba(255,255,255,.06); }
+
+  .row-actions { white-space: nowrap; display:flex; gap:6px; }
+
+  /* Stats */
+  .stats { display:grid; grid-template-columns: repeat(12,1fr); gap:12px; margin-top:14px; }
+  .stat-card { grid-column: span 4; padding:14px; border-radius:12px; border:1px solid var(--panel-border); background: var(--panel); }
+  .stat-title { font-size:12px; color: var(--text-dim); margin-bottom:6px; }
+  .stat-value { font-size:22px; font-weight:700; }
+  .stat-sub { font-size:12px; color: var(--text-dim); }
+
+  @media (max-width: 960px) {
+    form > .col-3, .controls > * { grid-column: span 12; }
+    .stat-card { grid-column: span 12; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"></div>
+    <div>
+      <h1>DbD 1v1 Tracker</h1>
+      <div class="muted">Dark mode, mm:ss chase time, JSON/CSV import/export, and winrate stats.</div>
+    </div>
+  </header>
+
+  <!-- Form -->
+  <section class="card">
+    <form id="entryForm">
+      <div class="col-3">
+        <label for="when">Time</label>
+        <input id="when" name="when" type="datetime-local" required
+               step="60" placeholder="YYYY-MM-DDTHH:MM" />
+      </div>
+      <div class="col-3">
+        <label for="killer">Killer</label>
+        <input id="killer" name="killer" list="killerList" placeholder="e.g., Blight" required />
+        <datalist id="killerList"></datalist>
+      </div>
+      <div class="col-3">
+        <label for="map">Map</label>
+        <input id="map" name="map" list="mapList" placeholder="e.g., The Game" required />
+        <datalist id="mapList"></datalist>
+      </div>
+      <div class="col-3">
+        <label for="opponent">Opponent</label>
+        <input id="opponent" name="opponent" placeholder="Team/Player handle" required />
+      </div>
+
+      <div class="col-3">
+        <label for="side">Side</label>
+        <select id="side" name="side" required>
+          <option value="Killer">Killer</option>
+          <option value="Survivor">Survivor</option>
+        </select>
+      </div>
+      <div class="col-3">
+        <label for="result">Result</label>
+        <select id="result" name="result" required>
+          <option value="Win">Win</option>
+          <option value="Loss">Loss</option>
+          <option value="Draw">Draw</option>
+        </select>
+      </div>
+      <div class="col-3">
+        <label for="chaseSec" id="chaseLabel">Chase Time (mm:ss or sec)</label>
+        <input id="chaseSec" name="chaseSec"
+               inputmode="text"
+               placeholder="e.g., 1:12 or 72"
+               title="Enter mm:ss (e.g., 1:12) or seconds (e.g., 72)" />
+      </div>
+      <div class="col-3">
+        <label>&nbsp;</label>
+        <button class="btn-accent" id="addBtn" type="submit">Add Entry</button>
+      </div>
+
+      <div class="col-12">
+        <label for="notes">Notes <span class="muted">(optional)</span></label>
+        <input id="notes" name="notes" placeholder="e.g., 3 shack mindgames, dropped early at TL" />
+      </div>
+    </form>
+  </section>
+
+  <!-- Controls -->
+  <section class="card controls" style="margin-top:14px;">
+    <input id="search" placeholder="Search killer/map/opponent/notes…" />
+    <select id="filterKiller"><option value="">Filter: Killer (all)</option></select>
+    <select id="filterMap"><option value="">Filter: Map (all)</option></select>
+    <select id="filterResult"><option value="">Filter: Result (all)</option><option>Win</option><option>Loss</option><option>Draw</option></select>
+    <select id="filterSide"><option value="">Filter: Side (all)</option><option>Killer</option><option>Survivor</option></select>
+
+    <div class="group">
+      <button id="exportJson" type="button">Export JSON</button>
+      <button id="importJson" type="button">Import JSON</button>
+      <button id="exportCsv" type="button">Export CSV</button>
+      <button id="importCsv" type="button">Import CSV</button>
+    </div>
+    <div class="group" style="justify-content:flex-end;">
+      <button id="clearAll" type="button" class="btn-danger">Clear All</button>
+    </div>
+  </section>
+
+  <!-- Table -->
+  <section class="card" style="margin-top:14px; overflow: hidden;">
+    <table id="entriesTable">
+      <thead>
+        <tr>
+          <th data-key="when">Time</th>
+          <th data-key="killer">Killer</th>
+          <th data-key="map">Map</th>
+          <th data-key="opponent">Opponent</th>
+          <th data-key="side">Side</th>
+          <th data-key="result">Result</th>
+          <th data-key="chase">Chase</th>
+          <th data-key="notes">Notes</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats">
+    <div class="stat-card">
+      <div class="stat-title">Overall</div>
+      <div class="stat-value" id="overallWinrate">—</div>
+      <div class="stat-sub" id="overallDetail">—</div>
+    </div>
+    <div class="stat-card" style="grid-column: span 8;">
+      <div class="stat-title">Winrate as Killer (by killer you played)</div>
+      <div id="tableAsKiller"></div>
+    </div>
+    <div class="stat-card" style="grid-column: span 12;">
+      <div class="stat-title">Winrate vs Killer (when you were survivor)</div>
+      <div id="tableVsKiller"></div>
+    </div>
+  </section>
+
+  <p class="muted" style="margin-top:10px;">Data lives in your browser (localStorage). Export JSON to back up.</p>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'dbd1v1_entries_v3';
+  const killers = [
+    "Trapper","Wraith","Hillbilly","Nurse","Shape (Myers)","Hag","Doctor","Huntress","Cannibal","Nightmare","Pig",
+    "Clown","Spirit","Legion","Plague","Ghost Face","Demogorgon","Oni","Deathslinger","Pyramid Head","Blight",
+    "Twins","Trickster","Nemesis","Pinhead","Artist","Onryō","Dredge","Wesker (Mastermind)","Knight","Skull Merchant",
+    "Singularity","Xenomorph","Good Guy (Chucky)","Unknown","Lich","Houndmaster"
+  ];
+  const maps = [
+    "Coal Tower (MacMillan)","Ironworks of Misery (MacMillan)","Shelter Woods (MacMillan)","Suffocation Pit (MacMillan)","Groaning Storehouse (MacMillan)",
+    "Wreckers’ Yard (Autohaven)","Blood Lodge (Autohaven)","Gas Heaven (Autohaven)","Wretched Shop (Autohaven)",
+    "Fractured Cowshed (Coldwind)","Rancid Abattoir (Coldwind)","Rotten Fields (Coldwind)","Thompson House (Coldwind)","Torment Creek (Coldwind)",
+    "Mount Ormond Resort","Léry’s Memorial Institute","The Game (Gideon)","Midwich Elementary School","R.P.D. East Wing","R.P.D. West Wing",
+    "Sanctum of Wrath (Yamaoka)","Family Residence (Yamaoka)","Mother’s Dwelling (Red Forest)","Temple of Purgation (Red Forest)",
+    "Eyrie of Crows","Garden of Joy","Badham Preschool I","Badham Preschool II","Badham Preschool III","Badham Preschool IV","Badham Preschool V",
+    "Dead Dawg Saloon","Grim Pantry (Backwater)","The Pale Rose (Backwater)","Haddonfield (Lampkin Lane)","Nostromo Wreckage"
+  ];
+
+  // Fill datalists
+  const killerDatalist = document.getElementById('killerList');
+  const mapDatalist   = document.getElementById('mapList');
+  killers.forEach(k => killerDatalist.appendChild(opt(k)));
+  maps.forEach(m => mapDatalist.appendChild(opt(m)));
+  function opt(v){ const o=document.createElement('option'); o.value=v; return o; }
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+
+  // Form elements
+  const form        = $('#entryForm');
+  const whenInput   = $('#when');
+  const killerInput = $('#killer');
+  const mapInput    = $('#map');
+  const opponentInp = $('#opponent');
+  const sideInput   = $('#side');
+  const resultInput = $('#result');
+  const chaseInput  = $('#chaseSec');
+  const chaseLabel  = $('#chaseLabel');
+  const notesInput  = $('#notes');
+
+  // Controls
+  const tableBody     = $('#entriesTable tbody');
+  const searchInput   = $('#search');
+  const filterKiller  = $('#filterKiller');
+  const filterMap     = $('#filterMap');
+  const filterResult  = $('#filterResult');
+  const filterSide    = $('#filterSide');
+
+  // Stats targets
+  const overallWinrate = $('#overallWinrate');
+  const overallDetail  = $('#overallDetail');
+  const tableAsKiller  = $('#tableAsKiller');
+  const tableVsKiller  = $('#tableVsKiller');
+
+  // --- Time helpers ---
+  function toLocalDatetimeInputValue(d) {
+    const pad = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function readWhen() {
+    const v = (whenInput.value || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
+      const [date, time] = v.split('T');
+      const [Y,M,D] = date.split('-').map(Number);
+      const [H,Min] = time.split(':').map(Number);
+      return new Date(Y, M-1, D, H, Min);
+    }
+    const d = new Date(v);
+    return isNaN(d) ? new Date() : d;
+  }
+  // Set default time now (local) in the exact format the control expects
+  whenInput.value = toLocalDatetimeInputValue(new Date());
+  // Update chase label by side
+  sideInput.addEventListener('change', ()=>{
+    chaseLabel.textContent = sideInput.value === 'Killer'
+      ? 'Chase Time (mm:ss or sec) — as Killer'
+      : 'Chase Time (mm:ss or sec) — as Survivor';
+  });
+  sideInput.dispatchEvent(new Event('change'));
+
+  // Load
+  let entries = load();
+  let sortKey = 'when', sortDir = 'desc';
+
+  function load(){
+    try { const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (Array.isArray(v)) return v; }
+    catch {}
+    return [];
+  }
+  function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+
+  // Submit
+  form.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const when = readWhen();
+    if (isNaN(when)) return alert('Invalid time.');
+    const side = sideInput.value;
+    const chase = parseDurationToSeconds(chaseInput.value);
+    const entry = {
+      id: crypto.randomUUID(),
+      when: when.toISOString(),
+      killer: killerInput.value.trim(),
+      map: mapInput.value.trim(),
+      opponent: opponentInp.value.trim(),
+      side,
+      result: resultInput.value,
+      chaseSurvivor: side === 'Survivor' ? chase : null,
+      chaseKiller:   side === 'Killer'   ? chase : null,
+      notes: notesInput.value.trim()
+    };
+    if (!entry.killer || !entry.map || !entry.opponent || !entry.side || !entry.result) {
+      alert('Please fill Time, Killer, Map, Opponent, Side, and Result.');
+      return;
+    }
+    entries.push(entry);
+    save();
+    renderAll();
+    whenInput.value = toLocalDatetimeInputValue(new Date());
+    sideInput.value = 'Killer';
+    sideInput.dispatchEvent(new Event('change'));
+    killerInput.focus();
+    chaseInput.value = '';
+  });
+
+  // Duration helpers
+  function parseDurationToSeconds(v){
+    const s = String(v||'').trim();
+    if (!s) return null;
+    const mmss = /^(\d{1,3}):([0-5]?\d)$/; // m up to 999, s 0-59
+    const m = s.match(mmss);
+    if (m) return parseInt(m[1],10)*60 + parseInt(m[2],10);
+    const n = Number(s);
+    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+    return null;
+  }
+  function formatSecondsToMMSS(n){
+    if (n == null || !Number.isFinite(n)) return '—';
+    const mins = Math.floor(n/60);
+    const secs = n % 60;
+    return `${mins}:${String(secs).padStart(2,'0')}`;
+  }
+
+  function renderTable(){
+    buildFilters();
+
+    const q  = searchInput.value.toLowerCase();
+    const fk = filterKiller.value;
+    const fm = filterMap.value;
+    const fr = filterResult.value;
+    const fs = filterSide.value;
+
+    let view = entries.slice();
+    view.sort((a,b)=>{
+      const va = a[sortKey] ?? '';
+      const vb = b[sortKey] ?? '';
+      if (sortKey === 'when') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
+
+    if (q) {
+      view = view.filter(r =>
+        (r.killer||'').toLowerCase().includes(q) ||
+        (r.map||'').toLowerCase().includes(q) ||
+        (r.opponent||'').toLowerCase().includes(q) ||
+        (r.notes||'').toLowerCase().includes(q)
+      );
+    }
+    if (fk) view = view.filter(r => r.killer === fk);
+    if (fm) view = view.filter(r => r.map === fm);
+    if (fr) view = view.filter(r => r.result === fr);
+    if (fs) view = view.filter(r => r.side === fs);
+
+    tableBody.innerHTML = '';
+    for (const r of view) {
+      const tr = document.createElement('tr');
+      const resClass = (r.result||'').toLowerCase();
+      const chaseSec = r.side === 'Killer' ? r.chaseKiller : r.side === 'Survivor' ? r.chaseSurvivor : null;
+      tr.innerHTML = `
+        <td>${fmtTime(r.when)}</td>
+        <td><span class="pill">${esc(r.killer)}</span></td>
+        <td>${esc(r.map)}</td>
+        <td>${esc(r.opponent)}</td>
+        <td><span class="pill side">${esc(r.side||'Unknown')}</span></td>
+        <td><span class="pill ${resClass}">${esc(r.result||'')}</span></td>
+        <td>${formatSecondsToMMSS(chaseSec)}</td>
+        <td>${esc(r.notes || '')}</td>
+        <td class="row-actions">
+          <button data-action="edit" data-id="${r.id}">Edit</button>
+          <button data-action="del"  data-id="${r.id}" class="btn-danger">Delete</button>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    }
+  }
+
+  function buildFilters(){
+    const killersSet = [...new Set(entries.map(e=>e.killer).filter(Boolean))].sort();
+    const mapsSet    = [...new Set(entries.map(e=>e.map).filter(Boolean))].sort();
+
+    const kVal = filterKiller.value;
+    const mVal = filterMap.value;
+
+    filterKiller.innerHTML = `<option value="">Filter: Killer (all)</option>` + killersSet.map(k=>`<option>${esc(k)}</option>`).join('');
+    filterMap.innerHTML    = `<option value="">Filter: Map (all)</option>` + mapsSet.map(m=>`<option>${esc(m)}</option>`).join('');
+
+    if (kVal && killersSet.includes(kVal)) filterKiller.value = kVal;
+    if (mVal && mapsSet.includes(mVal))    filterMap.value    = mVal;
+  }
+
+  // Sorting
+  $$('#entriesTable thead th[data-key]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      if (sortKey === key) sortDir = (sortDir === 'asc' ? 'desc' : 'asc');
+      else { sortKey = key; sortDir = key === 'when' ? 'desc' : 'asc'; }
+      renderTable();
+    });
+  });
+
+  // Row actions
+  tableBody.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const idx = entries.findIndex(r => r.id === id);
+    if (idx === -1) return;
+
+    if (btn.dataset.action === 'del') {
+      if (confirm('Delete this entry?')) { entries.splice(idx,1); save(); renderAll(); }
+    } else if (btn.dataset.action === 'edit') {
+      const r = entries[idx];
+      const whenLocal = toLocalDatetimeInputValue(new Date(r.when));
+      const killerNew = prompt('Killer:', r.killer) ?? r.killer;
+      const mapNew    = prompt('Map:',    r.map)    ?? r.map;
+      const oppNew    = prompt('Opponent:', r.opponent) ?? r.opponent;
+      const sideNew   = prompt('Side (Killer/Survivor):', r.side || 'Killer') ?? (r.side || 'Killer');
+      const resNew    = prompt('Result (Win/Loss/Draw):', r.result || 'Draw') ?? (r.result || 'Draw');
+
+      const chaseCurrent = r.side==='Killer' ? r.chaseKiller : r.side==='Survivor' ? r.chaseSurvivor : null;
+      const chaseShown = chaseCurrent==null ? '' : formatSecondsToMMSS(chaseCurrent);
+      const chaseNew  = prompt('Chase Time (mm:ss or sec):', chaseShown) ?? chaseShown;
+
+      const whenNew   = prompt('Time (YYYY-MM-DDTHH:MM):', whenLocal) ?? whenLocal;
+      const notesNew  = prompt('Notes:', r.notes || '') ?? (r.notes || '');
+
+      // validate & apply
+      let d = null;
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(whenNew)) {
+        const [date, time] = whenNew.split('T');
+        const [Y,M,D] = date.split('-').map(Number);
+        const [H,Min] = time.split(':').map(Number);
+        d = new Date(Y, M-1, D, H, Min);
+      } else {
+        d = new Date(whenNew);
+      }
+      if (isNaN(d)) { alert('Invalid time.'); return; }
+      const sideNorm = normSide(sideNew);
+
+      r.killer = (killerNew || '').trim();
+      r.map = (mapNew || '').trim();
+      r.opponent = (oppNew || '').trim();
+      r.side = sideNorm;
+      r.result = normalizeResult(resNew);
+      r.when = d.toISOString();
+
+      const chaseVal = parseDurationToSeconds(chaseNew);
+      r.chaseSurvivor = sideNorm === 'Survivor' ? chaseVal : null;
+      r.chaseKiller   = sideNorm === 'Killer'   ? chaseVal : null;
+
+      r.notes = (notesNew || '').trim();
+      save(); renderAll();
+    }
+  });
+
+  function normSide(s){
+    const t = String(s||'').toLowerCase();
+    if (t.startsWith('k')) return 'Killer';
+    if (t.startsWith('s')) return 'Survivor';
+    return 'Unknown';
+  }
+  function normalizeResult(s){
+    const t = (s||'').trim().toLowerCase();
+    if (t.startsWith('w')) return 'Win';
+    if (t.startsWith('l')) return 'Loss';
+    if (t.startsWith('d')) return 'Draw';
+    return 'Draw';
+  }
+  function fmtTime(iso){
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString();
+  }
+  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ===== JSON =====
+  $('#exportJson').addEventListener('click', ()=>{
+    const payload = { schema: 'dbd1v1.v3', exportedAt: new Date().toISOString(), entries };
+    downloadBlob(JSON.stringify(payload, null, 2), `dbd-1v1-tracker-${stamp()}.json`, 'application/json;charset=utf-8;');
+  });
+  $('#importJson').addEventListener('click', async ()=>{
+    const [file] = await openFile('.json,application/json'); if (!file) return;
+    try {
+      const text = await file.text();
+      const obj = JSON.parse(text);
+      const list = Array.isArray(obj) ? obj : (Array.isArray(obj.entries) ? obj.entries : []);
+      if (!Array.isArray(list)) throw new Error('JSON must be an array or {entries:[]}');
+      const byId = new Map(entries.map(e=>[e.id,e]));
+      let added=0, updated=0;
+      for (const r of list) {
+        const s = sanitize(r);
+        if (!s) continue;
+        if (byId.has(s.id)) { byId.set(s.id, s); updated++; }
+        else { byId.set(s.id, s); added++; }
+      }
+      entries = Array.from(byId.values());
+      save(); renderAll();
+      alert(`Imported ${added} new, updated ${updated}.`);
+    } catch (e) {
+      alert('Failed to import JSON: ' + e.message);
+    }
+  });
+
+  function sanitize(r){
+    try {
+      const id  = r.id || crypto.randomUUID();
+      const when = new Date(r.when || r.time || Date.now()); if (isNaN(when)) return null;
+      const killer = String(r.killer||'').trim();
+      const map    = String(r.map||'').trim();
+      const opponent = String(r.opponent||'').trim();
+      const side   = normSide(r.side || 'Unknown');
+      const result = normalizeResult(r.result || 'Draw');
+      const cs = r.chaseSurvivor == null ? null : Number(r.chaseSurvivor);
+      const ck = r.chaseKiller   == null ? null : Number(r.chaseKiller);
+      const notes = String(r.notes||'').trim();
+      if (!killer || !map || !opponent) return null;
+      return { id, when: when.toISOString(), killer, map, opponent, side, result, chaseSurvivor: cs, chaseKiller: ck, notes };
+    } catch { return null; }
+  }
+
+  // ===== CSV =====
+  $('#exportCsv').addEventListener('click', ()=>{
+    const header = ['id','when','killer','map','opponent','side','result','chaseSurvivor','chaseKiller','notes'];
+    const lines = [header.join(',')];
+    for (const r of entries) lines.push(header.map(k => csvCell(r[k] ?? '')).join(','));
+    downloadBlob(lines.join('\n'), `dbd-1v1-tracker-${stamp()}.csv`, 'text/csv;charset=utf-8;');
+  });
+  $('#importCsv').addEventListener('click', async ()=>{
+    const [file] = await openFile('.csv,text/csv'); if (!file) return;
+    const text = await file.text();
+    const rows = parseCsv(text);
+    const header = rows.shift() || [];
+    const idx = (name) => header.indexOf(name);
+    const idIx=idx('id'), whenIx=idx('when'), kIx=idx('killer'), mIx=idx('map'),
+          oIx=idx('opponent'), sIx=idx('side'), rIx=idx('result'),
+          csIx=idx('chaseSurvivor'), ckIx=idx('chaseKiller'), nIx=idx('notes');
+    if ([idIx,whenIx,kIx,mIx,oIx,sIx,rIx,csIx,ckIx,nIx].some(i=>i===-1)){
+      alert('CSV must include id,when,killer,map,opponent,side,result,chaseSurvivor,chaseKiller,notes');
+      return;
+    }
+    const byId = new Map(entries.map(e=>[e.id,e]));
+    let added=0, updated=0;
+    for (const r of rows) {
+      const obj = sanitize({
+        id: r[idIx] || crypto.randomUUID(),
+        when: r[whenIx],
+        killer: r[kIx],
+        map: r[mIx],
+        opponent: r[oIx],
+        side: r[sIx],
+        result: r[rIx],
+        chaseSurvivor: r[csIx]? Number(r[csIx]) : null,
+        chaseKiller:   r[ckIx]? Number(r[ckIx]) : null,
+        notes: r[nIx] || ''
+      });
+      if (!obj) continue;
+      if (byId.has(obj.id)) { byId.set(obj.id, obj); updated++; }
+      else { byId.set(obj.id, obj); added++; }
+    }
+    entries = Array.from(byId.values());
+    save(); renderAll();
+    alert(`Imported ${added} new, updated ${updated}.`);
+  });
+
+  // ===== Utils =====
+  function csvCell(s){ const t = String(s).replace(/"/g,'""'); return /[",\n]/.test(t) ? `"${t}"` : t; }
+  function parseCsv(text){
+    const rows = []; let row = [], cell = '', inQ = false;
+    for (let i=0;i<text.length;i++){
+      const c = text[i], n = text[i+1];
+      if (inQ){
+        if (c === '"' && n === '"'){ cell += '"'; i++; }
+        else if (c === '"'){ inQ = false; }
+        else { cell += c; }
+      } else {
+        if (c === '"' ){ inQ = true; }
+        else if (c === ','){ row.push(cell); cell=''; }
+        else if (c === '\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+        else if (c === '\r'){ }
+        else { cell += c; }
+      }
+    }
+    if (cell.length || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+  function openFile(accept){
+    return new Promise((resolve)=>{
+      const inp = document.createElement('input');
+      inp.type = 'file'; if (accept) inp.accept = accept;
+      inp.addEventListener('change', ()=> resolve(inp.files || []), {once:true});
+      inp.click();
+    });
+  }
+  function downloadBlob(text, filename, mime){
+    const blob = new Blob([text], {type:mime});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename; a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function stamp(){
+    const d = new Date(); const p = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }
+
+  // ===== Stats =====
+  function renderStats(){
+    const onlyWL = entries.filter(e => e.result === 'Win' || e.result === 'Loss');
+    const wins = onlyWL.filter(e => e.result === 'Win').length;
+    const losses = onlyWL.filter(e => e.result === 'Loss').length;
+    const draws = entries.filter(e => e.result === 'Draw').length;
+    const winrate = onlyWL.length ? (wins/onlyWL.length)*100 : 0;
+    overallWinrate.textContent = onlyWL.length ? `${winrate.toFixed(1)}%` : '—';
+    overallDetail.textContent = `${wins}W / ${losses}L ${draws?`/ ${draws}D`:''} across ${entries.length} matches`;
+
+    const asKiller = entries.filter(e => e.side === 'Killer');
+    tableAsKiller.innerHTML = buildAggTable(
+      groupBy(asKiller, e => e.killer),
+      row => ({
+        label: row.key,
+        played: row.items.filter(e => e.result === 'Win' || e.result === 'Loss').length,
+        wins: row.items.filter(e => e.result === 'Win').length,
+        losses: row.items.filter(e => e.result === 'Loss').length,
+        winrate: pct(row.items.filter(e => e.result !== 'Draw'), e => e.result === 'Win'),
+        avgChase: avgSec(row.items.map(e => e.chaseKiller).filter(n=>Number.isFinite(n)))
+      }),
+      ['Killer','Played','Wins','Losses','Win%','Avg chase']
+    );
+
+    const vsKiller = entries.filter(e => e.side === 'Survivor');
+    tableVsKiller.innerHTML = buildAggTable(
+      groupBy(vsKiller, e => e.killer),
+      row => ({
+        label: row.key,
+        played: row.items.filter(e => e.result === 'Win' || e.result === 'Loss').length,
+        wins: row.items.filter(e => e.result === 'Win').length,
+        losses: row.items.filter(e => e.result === 'Loss').length,
+        winrate: pct(row.items.filter(e => e.result !== 'Draw'), e => e.result === 'Win'),
+        avgChase: avgSec(row.items.map(e => e.chaseSurvivor).filter(n=>Number.isFinite(n)))
+      }),
+      ['Killer','Played','Wins','Losses','Win%','Avg chase']
+    );
+  }
+  function groupBy(arr, keyFn){
+    const map = new Map();
+    for (const it of arr){
+      const k = keyFn(it);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(it);
+    }
+    return Array.from(map.entries()).map(([key,items])=>({key,items}))
+      .sort((a,b)=>String(a.key).localeCompare(String(b.key)));
+  }
+  function pct(list, winPred){
+    const base = list.length;
+    if (!base) return '—';
+    const w = list.filter(winPred).length;
+    return `${((w/base)*100).toFixed(1)}%`;
+  }
+  function avgSec(nums){
+    if (!nums.length) return '—';
+    const s = nums.reduce((a,b)=>a+b,0);
+    return formatSecondsToMMSS(Math.round(s/nums.length));
+  }
+  function buildAggTable(rows, mapRow, headers){
+    if (rows.length === 0) return `<div class="muted">No data yet.</div>`;
+    const mapped = rows.map(mapRow);
+    const head = `<thead><tr>${headers.map(h=>`<th style="text-align:left;padding:8px 6px;">${h}</th>`).join('')}</tr></thead>`;
+    const body = `<tbody>${mapped.map(r=>`
+      <tr>
+        <td style="padding:8px 6px;">${esc(r.label)}</td>
+        <td style="padding:8px 6px;">${esc(r.played)}</td>
+        <td style="padding:8px 6px;">${esc(r.wins)}</td>
+        <td style="padding:8px 6px;">${esc(r.losses)}</td>
+        <td style="padding:8px 6px;">${esc(r.winrate)}</td>
+        <td style="padding:8px 6px;">${esc(r.avgChase)}</td>
+      </tr>`).join('')}</tbody>`;
+    return `<table style="width:100%;border-collapse:collapse;border:1px solid var(--panel-border);">${head}${body}</table>`;
+  }
+
+  // Live search & filters
+  searchInput.addEventListener('input', renderAll);
+  [filterKiller, filterMap, filterResult, filterSide].forEach(el=> el.addEventListener('change', renderAll));
+
+  // Clear all
+  $('#clearAll').addEventListener('click', ()=>{
+    if (!entries.length) return alert('Nothing to clear.');
+    if (confirm('This will delete ALL saved entries on this device. Continue?')) { entries = []; save(); renderAll(); }
+  });
+
+  function renderAll(){ renderTable(); renderStats(); }
+
+  // Initial render
+  renderAll();
+})();
+</script>
+</body>
+</html>
