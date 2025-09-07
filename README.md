@@ -75,7 +75,8 @@ Items are grouped by priority and release stage. Contributions and feedback are 
 ---
 
 ## 📌 Notes
-- This project will r
+- This project will remain **open-source** and under the MIT License.
+- Roadmap is flexible: priorities may shift based on feedback or contributions.
 
 ## Dev
 Pure HTML/CSS/JS. No build step.
