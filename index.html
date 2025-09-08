@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DbD 1v1 Tracker — Dark</title>
+<title>DbD 1v1 Tracker — v1.1+</title>
 <meta name="color-scheme" content="dark" />
 <style>
   :root {
@@ -35,12 +35,18 @@
 
   .wrap { max-width: 1120px; margin: 0 auto; }
 
-  header { display:flex; align-items:center; gap:12px; margin-bottom: 18px; }
+  header { display:flex; align-items:center; gap:12px; margin-bottom: 12px; }
   .logo { width:38px; height:38px; border-radius:12px;
     background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--shadow); }
   h1 { margin: 0; font-weight: 700; letter-spacing: 0.2px; }
   .muted { color: var(--text-dim); font-size: 12px; }
-  .split { height: 12px; }
+
+  .banner {
+    margin: 10px 0 18px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,204,102,0.1);
+    color: var(--warn); display:none;
+  }
 
   .card {
     background: var(--panel);
@@ -57,11 +63,17 @@
   form > .col-12 { grid-column: span 12; }
 
   label { display:block; font-size:12px; color: var(--text-dim); margin: 2px 0 6px; }
-  input, select, button {
+  .help { font-size:11px; color: var(--text-dim); margin-top:6px; }
+  .error { font-size:11px; color: var(--danger); margin-top:4px; display:none; }
+
+  input, select, button, textarea {
     width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--panel-border);
     background: rgba(255,255,255,0.06); color: var(--text); outline:none;
   }
-  input::placeholder { color: #9aa2b4; opacity: .8; }
+  textarea { resize: vertical; min-height: 38px; }
+  input::placeholder, textarea::placeholder { color: #9aa2b4; opacity: .8; }
+
+  /* Selects - ensure visibility on dark */
   select {
     appearance: none;
     background-image:
@@ -71,7 +83,6 @@
     background-size: 6px 6px, 6px 6px; background-repeat: no-repeat;
     color: var(--text); background: var(--panel-2); border-color: var(--panel-border);
   }
-  /* Make popup rows readable on dark */
   select option, select optgroup { color: var(--text); background: var(--bg); }
   select:focus { outline: none; box-shadow: 0 0 0 3px rgba(136,224,195,.20); border-color: var(--accent-2); }
   @supports (color-scheme: dark) { select, option { color-scheme: dark; } }
@@ -81,11 +92,17 @@
   button:active { transform: translateY(1px); }
   .btn-accent { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0d0f12; border:none; font-weight: 600; }
   .btn-danger { color: #fff; background: var(--danger); border: none; }
-  .btn-ghost  { background: transparent; border:1px dashed var(--panel-border); }
+  .btn-mini { padding: 6px 10px; font-size: 12px; border-radius:8px; }
+  .btn-small {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+  }
 
   .controls { padding: 12px 16px; margin-top: 12px; }
   .controls > * { grid-column: span 3; }
-  .controls .group { display:flex; gap:8px; grid-column: span 6; }
+  .controls .group { display:flex; gap:8px; flex-wrap: wrap; }
 
   table { width: 100%; border-collapse: collapse; }
   thead th {
@@ -104,16 +121,32 @@
 
   .row-actions { white-space: nowrap; display:flex; gap:6px; }
 
-  /* Stats */
   .stats { display:grid; grid-template-columns: repeat(12,1fr); gap:12px; margin-top:14px; }
   .stat-card { grid-column: span 4; padding:14px; border-radius:12px; border:1px solid var(--panel-border); background: var(--panel); }
   .stat-title { font-size:12px; color: var(--text-dim); margin-bottom:6px; }
   .stat-value { font-size:22px; font-weight:700; }
   .stat-sub { font-size:12px; color: var(--text-dim); }
 
+  .stat-wide { grid-column: span 8; }
+  .stat-full { grid-column: span 12; }
+
+  /* Modal for export choice */
+  .modal {
+    position: fixed; inset: 0; display: none; place-items: center;
+    background: rgba(0,0,0,0.5);
+  }
+  .modal .sheet {
+    background: var(--panel); border:1px solid var(--panel-border);
+    border-radius: 14px; padding: 16px; min-width: 260px; box-shadow: var(--shadow);
+  }
+  .modal .sheet h3 { margin: 0 0 10px; font-size: 16px; }
+  .modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top: 12px; }
+  .modal .actions .spacer { flex: 1; }
+
   @media (max-width: 960px) {
     form > .col-3, .controls > * { grid-column: span 12; }
-    .stat-card { grid-column: span 12; }
+    .controls { gap:8px; }
+    .stat-card, .stat-wide, .stat-full { grid-column: span 12; }
   }
 </style>
 </head>
@@ -123,31 +156,38 @@
     <div class="logo"></div>
     <div>
       <h1>DbD 1v1 Tracker</h1>
-      <div class="muted">Dark mode, mm:ss chase time, JSON/CSV import/export, and winrate stats.</div>
+      <div class="muted">Dark mode, inline edits, mm:ss chase time, import/export, and deeper stats.</div>
     </div>
   </header>
 
+  <div class="banner" id="backupBanner">
+    ⚠️ You haven’t exported a backup in a while. Use <b>Export</b> (JSON or CSV) to save your data.
+  </div>
+
   <!-- Form -->
   <section class="card">
-    <form id="entryForm">
+    <form id="entryForm" novalidate>
       <div class="col-3">
         <label for="when">Time</label>
-        <input id="when" name="when" type="datetime-local" required
-               step="60" placeholder="YYYY-MM-DDTHH:MM" />
+        <input id="when" name="when" type="datetime-local" required step="60" placeholder="YYYY-MM-DDTHH:MM" />
+        <div class="error" id="err-when">Please enter a valid time (YYYY-MM-DDTHH:MM).</div>
       </div>
       <div class="col-3">
         <label for="killer">Killer</label>
         <input id="killer" name="killer" list="killerList" placeholder="e.g., Blight" required />
         <datalist id="killerList"></datalist>
+        <div class="error" id="err-killer">Killer is required.</div>
       </div>
       <div class="col-3">
         <label for="map">Map</label>
         <input id="map" name="map" list="mapList" placeholder="e.g., The Game" required />
         <datalist id="mapList"></datalist>
+        <div class="error" id="err-map">Map is required.</div>
       </div>
       <div class="col-3">
         <label for="opponent">Opponent</label>
         <input id="opponent" name="opponent" placeholder="Team/Player handle" required />
+        <div class="error" id="err-opp">Opponent is required.</div>
       </div>
 
       <div class="col-3">
@@ -156,6 +196,7 @@
           <option value="Killer">Killer</option>
           <option value="Survivor">Survivor</option>
         </select>
+        <div class="error" id="err-side">Side is required.</div>
       </div>
       <div class="col-3">
         <label for="result">Result</label>
@@ -164,13 +205,13 @@
           <option value="Loss">Loss</option>
           <option value="Draw">Draw</option>
         </select>
+        <div class="error" id="err-res">Result is required.</div>
       </div>
       <div class="col-3">
         <label for="chaseSec" id="chaseLabel">Chase Time (mm:ss or sec)</label>
-        <input id="chaseSec" name="chaseSec"
-               inputmode="text"
-               placeholder="e.g., 1:12 or 72"
+        <input id="chaseSec" name="chaseSec" inputmode="text" placeholder="e.g., 1:12 or 72"
                title="Enter mm:ss (e.g., 1:12) or seconds (e.g., 72)" />
+        <div class="help">Optional; stored as seconds and shown as mm:ss.</div>
       </div>
       <div class="col-3">
         <label>&nbsp;</label>
@@ -178,28 +219,31 @@
       </div>
 
       <div class="col-12">
-        <label for="notes">Notes <span class="muted">(optional)</span></label>
-        <input id="notes" name="notes" placeholder="e.g., 3 shack mindgames, dropped early at TL" />
+        <label for="notes">Your notes <span class="muted">(optional)</span></label>
+        <textarea id="notes" name="notes" placeholder="e.g., 3 shack mindgames, Hit early at TL"></textarea>
       </div>
     </form>
   </section>
 
   <!-- Controls -->
   <section class="card controls" style="margin-top:14px;">
+    <!-- Row 1: search + Side filter moved up -->
     <input id="search" placeholder="Search killer/map/opponent/notes…" />
+    <select id="filterSide">
+      <option value="">Filter: Side (all)</option>
+      <option>Killer</option><option>Survivor</option>
+    </select>
+
+    <!-- Row 1 cont.: Killer/Map/Result filters -->
     <select id="filterKiller"><option value="">Filter: Killer (all)</option></select>
     <select id="filterMap"><option value="">Filter: Map (all)</option></select>
     <select id="filterResult"><option value="">Filter: Result (all)</option><option>Win</option><option>Loss</option><option>Draw</option></select>
-    <select id="filterSide"><option value="">Filter: Side (all)</option><option>Killer</option><option>Survivor</option></select>
 
-    <div class="group">
-      <button id="exportJson" type="button">Export JSON</button>
-      <button id="importJson" type="button">Import JSON</button>
-      <button id="exportCsv" type="button">Export CSV</button>
-      <button id="importCsv" type="button">Import CSV</button>
-    </div>
-    <div class="group" style="justify-content:flex-end;">
-      <button id="clearAll" type="button" class="btn-danger">Clear All</button>
+    <!-- Left-aligned actions: Clear All + Import + Export -->
+    <div class="group" style="grid-column: span 12; justify-content:flex-start;">
+      <button id="clearAll" type="button" class="btn-danger" title="Delete all local data">Clear All</button>
+      <button id="importBtn" type="button" class="btn-small" title="Import JSON or CSV">Import</button>
+      <button id="exportBtn" type="button" class="btn-small" title="Export JSON or CSV">Export</button>
     </div>
   </section>
 
@@ -216,7 +260,7 @@
           <th data-key="result">Result</th>
           <th data-key="chase">Chase</th>
           <th data-key="notes">Notes</th>
-          <th>Actions</th>
+          <th style="width:180px;">Actions</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -229,23 +273,59 @@
       <div class="stat-title">Overall</div>
       <div class="stat-value" id="overallWinrate">—</div>
       <div class="stat-sub" id="overallDetail">—</div>
+      <div class="stat-sub" id="streakInfo">Streak: —</div>
     </div>
-    <div class="stat-card" style="grid-column: span 8;">
+
+    <div class="stat-card stat-wide">
+      <div class="stat-title">Chase Times</div>
+      <div class="stat-sub" id="chaseSummary">—</div>
+      <div class="stat-sub" id="chaseExtremes">—</div>
+    </div>
+
+    <div class="stat-card stat-wide">
       <div class="stat-title">Winrate as Killer (by killer you played)</div>
       <div id="tableAsKiller"></div>
     </div>
-    <div class="stat-card" style="grid-column: span 12;">
+
+    <div class="stat-card stat-full">
       <div class="stat-title">Winrate vs Killer (when you were survivor)</div>
       <div id="tableVsKiller"></div>
     </div>
+
+    <div class="stat-card stat-full">
+      <div class="stat-title">Per-Map Winrate</div>
+      <div id="tablePerMap"></div>
+    </div>
+
+    <div class="stat-card stat-full">
+      <div class="stat-title">Per-Killer Averages & Best/Worst Maps</div>
+      <div id="tablePerKillerCombo"></div>
+    </div>
   </section>
 
-  <p class="muted" style="margin-top:10px;">Data lives in your browser (localStorage). Export JSON to back up.</p>
+  <p class="muted" style="margin-top:10px;">Data lives in your browser (localStorage). Use <b>Export</b> to back up.</p>
+</div>
+
+<!-- Export choice modal -->
+<div class="modal" id="exportModal" aria-hidden="true">
+  <div class="sheet">
+    <h3>Export data</h3>
+    <div class="muted">Choose a format:</div>
+    <div class="actions">
+      <span class="spacer"></span>
+      <button type="button" class="btn-small" id="exportCsv">CSV</button>
+      <button type="button" class="btn-small" id="exportJson">JSON</button>
+      <button type="button" class="btn-danger" id="exportCancel">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <script>
 (function(){
   const STORAGE_KEY = 'dbd1v1_entries_v3';
+  const META_KEY = 'dbd1v1_meta'; // { lastExportAt: ISO }
+  const BACKUP_DAYS = 14;
+
   const killers = [
     "Trapper","Wraith","Hillbilly","Nurse","Shape (Myers)","Hag","Doctor","Huntress","Cannibal","Nightmare","Pig",
     "Clown","Spirit","Legion","Plague","Ghost Face","Demogorgon","Oni","Deathslinger","Pyramid Head","Blight",
@@ -272,7 +352,7 @@
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
 
-  // Form elements
+  // Elements
   const form        = $('#entryForm');
   const whenInput   = $('#when');
   const killerInput = $('#killer');
@@ -284,7 +364,13 @@
   const chaseLabel  = $('#chaseLabel');
   const notesInput  = $('#notes');
 
-  // Controls
+  const errWhen = $('#err-when'), errKiller = $('#err-killer'),
+        errMap = $('#err-map'), errOpp = $('#err-opp'),
+        errSide = $('#err-side'), errRes = $('#err-res');
+
+  const backupBanner = $('#backupBanner');
+
+  // Controls/table/stat targets
   const tableBody     = $('#entriesTable tbody');
   const searchInput   = $('#search');
   const filterKiller  = $('#filterKiller');
@@ -292,19 +378,31 @@
   const filterResult  = $('#filterResult');
   const filterSide    = $('#filterSide');
 
-  // Stats targets
   const overallWinrate = $('#overallWinrate');
   const overallDetail  = $('#overallDetail');
+  const streakInfo     = $('#streakInfo');
+  const chaseSummary   = $('#chaseSummary');
+  const chaseExtremes  = $('#chaseExtremes');
   const tableAsKiller  = $('#tableAsKiller');
   const tableVsKiller  = $('#tableVsKiller');
+  const tablePerMap    = $('#tablePerMap');
+  const tablePerKillerCombo = $('#tablePerKillerCombo');
+
+  // Export modal
+  const exportModal = $('#exportModal');
+  const exportBtn   = $('#exportBtn');
+  const exportJson  = $('#exportJson');
+  const exportCsv   = $('#exportCsv');
+  const exportCancel= $('#exportCancel');
+  const importBtn   = $('#importBtn');
 
   // --- Time helpers ---
   function toLocalDatetimeInputValue(d) {
     const pad = n => String(n).padStart(2,'0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
-  function readWhen() {
-    const v = (whenInput.value || '').trim();
+  function readWhenInput(el) {
+    const v = (el.value || '').trim();
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
       const [date, time] = v.split('T');
       const [Y,M,D] = date.split('-').map(Number);
@@ -312,10 +410,10 @@
       return new Date(Y, M-1, D, H, Min);
     }
     const d = new Date(v);
-    return isNaN(d) ? new Date() : d;
+    return isNaN(d) ? null : d;
   }
-  // Set default time now (local) in the exact format the control expects
   whenInput.value = toLocalDatetimeInputValue(new Date());
+
   // Update chase label by side
   sideInput.addEventListener('change', ()=>{
     chaseLabel.textContent = sideInput.value === 'Killer'
@@ -328,6 +426,19 @@
   let entries = load();
   let sortKey = 'when', sortDir = 'desc';
 
+  // Backup banner
+  showBackupBanner();
+
+  function showBackupBanner(){
+    try {
+      const meta = JSON.parse(localStorage.getItem(META_KEY) || '{}');
+      const last = meta.lastExportAt ? new Date(meta.lastExportAt) : null;
+      const now = new Date();
+      const diffDays = last ? Math.floor((now - last)/86400000) : Infinity;
+      backupBanner.style.display = (entries.length && diffDays >= BACKUP_DAYS) ? 'block' : 'none';
+    } catch { backupBanner.style.display = 'none'; }
+  }
+
   function load(){
     try { const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (Array.isArray(v)) return v; }
     catch {}
@@ -335,11 +446,87 @@
   }
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
 
+  // Helpers
+  function parseDurationToSeconds(v){
+    const s = String(v||'').trim();
+    if (!s) return null;
+    const mmss = /^(\d{1,3}):([0-5]?\d)$/;
+    const m = s.match(mmss);
+    if (m) return parseInt(m[1],10)*60 + parseInt(m[2],10);
+    const n = Number(s);
+    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+    return null;
+  }
+  function formatSecondsToMMSS(n){
+    if (n == null || !Number.isFinite(n)) return '—';
+    const mins = Math.floor(n/60), secs = n % 60;
+    return `${mins}:${String(secs).padStart(2,'0')}`;
+  }
+  function fmtTime(iso){
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString();
+  }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function normSide(s){
+    const t = String(s||'').toLowerCase();
+    if (t.startsWith('k')) return 'Killer';
+    if (t.startsWith('s')) return 'Survivor';
+    return 'Unknown';
+  }
+  function normalizeResult(s){
+    const t = (s||'').trim().toLowerCase();
+    if (t.startsWith('w')) return 'Win';
+    if (t.startsWith('l')) return 'Loss';
+    if (t.startsWith('d')) return 'Draw';
+    return 'Draw';
+  }
+  function median(nums){
+    if (!nums.length) return null;
+    const a = nums.slice().sort((x,y)=>x-y);
+    const mid = Math.floor(a.length/2);
+    return a.length%2 ? a[mid] : Math.round((a[mid-1]+a[mid])/2);
+  }
+  function groupBy(arr, keyFn){
+    const map = new Map();
+    for (const it of arr){
+      const k = keyFn(it);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(it);
+    }
+    return Array.from(map.entries()).map(([key,items])=>({key,items}))
+      .sort((a,b)=>String(a.key).localeCompare(String(b.key)));
+  }
+  function winrate(items){
+    const wl = items.filter(e=>e.result==='Win'||e.result==='Loss');
+    if (!wl.length) return null;
+    const w = wl.filter(e=>e.result==='Win').length;
+    return (w / wl.length) * 100;
+  }
+  function pctFmt(x){ return x==null ? '—' : `${x.toFixed(1)}%`; }
+
+  // Validation helpers
+  function setError(el, errEl, ok){
+    if (ok){ errEl.style.display='none'; el.style.borderColor = 'var(--panel-border)'; }
+    else { errEl.style.display='block'; el.style.borderColor = 'var(--danger)'; }
+  }
+
   // Submit
   form.addEventListener('submit', (e)=>{
     e.preventDefault();
-    const when = readWhen();
-    if (isNaN(when)) return alert('Invalid time.');
+    const when = readWhenInput(whenInput);
+    setError(whenInput, errWhen, !!when);
+    setError(killerInput, errKiller, !!killerInput.value.trim());
+    setError(mapInput, errMap, !!mapInput.value.trim());
+    setError(opponentInp, errOpp, !!opponentInp.value.trim());
+    setError(sideInput, errSide, !!sideInput.value);
+    setError(resultInput, errRes, !!resultInput.value);
+
+    if (!when || !killerInput.value.trim() || !mapInput.value.trim() || !opponentInp.value.trim() || !sideInput.value || !resultInput.value) return;
+
     const side = sideInput.value;
     const chase = parseDurationToSeconds(chaseInput.value);
     const entry = {
@@ -354,63 +541,38 @@
       chaseKiller:   side === 'Killer'   ? chase : null,
       notes: notesInput.value.trim()
     };
-    if (!entry.killer || !entry.map || !entry.opponent || !entry.side || !entry.result) {
-      alert('Please fill Time, Killer, Map, Opponent, Side, and Result.');
-      return;
-    }
     entries.push(entry);
     save();
     renderAll();
+
     whenInput.value = toLocalDatetimeInputValue(new Date());
     sideInput.value = 'Killer';
     sideInput.dispatchEvent(new Event('change'));
     killerInput.focus();
     chaseInput.value = '';
+    notesInput.value = '';
   });
 
-  // Duration helpers
-  function parseDurationToSeconds(v){
-    const s = String(v||'').trim();
-    if (!s) return null;
-    const mmss = /^(\d{1,3}):([0-5]?\d)$/; // m up to 999, s 0-59
-    const m = s.match(mmss);
-    if (m) return parseInt(m[1],10)*60 + parseInt(m[2],10);
-    const n = Number(s);
-    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
-    return null;
-  }
-  function formatSecondsToMMSS(n){
-    if (n == null || !Number.isFinite(n)) return '—';
-    const mins = Math.floor(n/60);
-    const secs = n % 60;
-    return `${mins}:${String(secs).padStart(2,'0')}`;
-  }
-
+  // Render table with inline editing
   function renderTable(){
     buildFilters();
 
     const q  = searchInput.value.toLowerCase();
-    const fk = filterKiller.value;
-    const fm = filterMap.value;
-    const fr = filterResult.value;
-    const fs = filterSide.value;
+    const fk = filterKiller.value, fm = filterMap.value, fr = filterResult.value, fs = filterSide.value;
 
     let view = entries.slice();
     view.sort((a,b)=>{
-      const va = a[sortKey] ?? '';
-      const vb = b[sortKey] ?? '';
+      const va = a[sortKey] ?? '', vb = b[sortKey] ?? '';
       if (sortKey === 'when') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
       return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
     });
 
-    if (q) {
-      view = view.filter(r =>
-        (r.killer||'').toLowerCase().includes(q) ||
-        (r.map||'').toLowerCase().includes(q) ||
-        (r.opponent||'').toLowerCase().includes(q) ||
-        (r.notes||'').toLowerCase().includes(q)
-      );
-    }
+    if (q) view = view.filter(r =>
+      (r.killer||'').toLowerCase().includes(q) ||
+      (r.map||'').toLowerCase().includes(q) ||
+      (r.opponent||'').toLowerCase().includes(q) ||
+      (r.notes||'').toLowerCase().includes(q)
+    );
     if (fk) view = view.filter(r => r.killer === fk);
     if (fm) view = view.filter(r => r.map === fm);
     if (fr) view = view.filter(r => r.result === fr);
@@ -419,38 +581,110 @@
     tableBody.innerHTML = '';
     for (const r of view) {
       const tr = document.createElement('tr');
+      tr.dataset.id = r.id;
       const resClass = (r.result||'').toLowerCase();
       const chaseSec = r.side === 'Killer' ? r.chaseKiller : r.side === 'Survivor' ? r.chaseSurvivor : null;
+
       tr.innerHTML = `
-        <td>${fmtTime(r.when)}</td>
-        <td><span class="pill">${esc(r.killer)}</span></td>
-        <td>${esc(r.map)}</td>
-        <td>${esc(r.opponent)}</td>
-        <td><span class="pill side">${esc(r.side||'Unknown')}</span></td>
-        <td><span class="pill ${resClass}">${esc(r.result||'')}</span></td>
-        <td>${formatSecondsToMMSS(chaseSec)}</td>
-        <td>${esc(r.notes || '')}</td>
+        <td data-col="when">${fmtTime(r.when)}</td>
+        <td data-col="killer"><span class="pill">${esc(r.killer)}</span></td>
+        <td data-col="map">${esc(r.map)}</td>
+        <td data-col="opponent">${esc(r.opponent)}</td>
+        <td data-col="side"><span class="pill side">${esc(r.side||'Unknown')}</span></td>
+        <td data-col="result"><span class="pill ${resClass}">${esc(r.result||'')}</span></td>
+        <td data-col="chase">${formatSecondsToMMSS(chaseSec)}</td>
+        <td data-col="notes">${esc(r.notes || '')}</td>
         <td class="row-actions">
-          <button data-action="edit" data-id="${r.id}">Edit</button>
-          <button data-action="del"  data-id="${r.id}" class="btn-danger">Delete</button>
+          <button class="btn-mini" data-action="edit">Edit</button>
+          <button class="btn-mini" data-action="save" style="display:none;">Save</button>
+          <button class="btn-mini" data-action="cancel" style="display:none;">Cancel</button>
+          <button class="btn-mini btn-danger" data-action="del">Delete</button>
         </td>
       `;
       tableBody.appendChild(tr);
     }
   }
 
-  function buildFilters(){
-    const killersSet = [...new Set(entries.map(e=>e.killer).filter(Boolean))].sort();
-    const mapsSet    = [...new Set(entries.map(e=>e.map).filter(Boolean))].sort();
+  function toEditRow(tr){
+    const id = tr.dataset.id;
+    const r = entries.find(e=>e.id===id); if (!r) return;
 
-    const kVal = filterKiller.value;
-    const mVal = filterMap.value;
+    const whenLocal = toLocalDatetimeInputValue(new Date(r.when));
+    const chaseSec = r.side==='Killer' ? r.chaseKiller : r.side==='Survivor' ? r.chaseSurvivor : null;
+    const chaseShown = chaseSec==null ? '' : formatSecondsToMMSS(chaseSec);
 
-    filterKiller.innerHTML = `<option value="">Filter: Killer (all)</option>` + killersSet.map(k=>`<option>${esc(k)}</option>`).join('');
-    filterMap.innerHTML    = `<option value="">Filter: Map (all)</option>` + mapsSet.map(m=>`<option>${esc(m)}</option>`).join('');
+    tr.querySelector('[data-col="when"]').innerHTML =
+      `<input type="datetime-local" value="${whenLocal}" step="60" class="cell-input" />`;
+    tr.querySelector('[data-col="killer"]').innerHTML =
+      `<input list="killerList" value="${esc(r.killer)}" class="cell-input" />`;
+    tr.querySelector('[data-col="map"]').innerHTML =
+      `<input list="mapList" value="${esc(r.map)}" class="cell-input" />`;
+    tr.querySelector('[data-col="opponent"]').innerHTML =
+      `<input value="${esc(r.opponent)}" class="cell-input" />`;
+    tr.querySelector('[data-col="side"]').innerHTML =
+      `<select class="cell-input">
+        <option ${r.side==='Killer'?'selected':''}>Killer</option>
+        <option ${r.side==='Survivor'?'selected':''}>Survivor</option>
+      </select>`;
+    tr.querySelector('[data-col="result"]').innerHTML =
+      `<select class="cell-input">
+        <option ${r.result==='Win'?'selected':''}>Win</option>
+        <option ${r.result==='Loss'?'selected':''}>Loss</option>
+        <option ${r.result==='Draw'?'selected':''}>Draw</option>
+      </select>`;
+    tr.querySelector('[data-col="chase"]').innerHTML =
+      `<input value="${esc(chaseShown)}" placeholder="mm:ss or sec" class="cell-input" />`;
+    tr.querySelector('[data-col="notes"]').innerHTML =
+      `<textarea class="cell-input">${esc(r.notes||'')}</textarea>`;
 
-    if (kVal && killersSet.includes(kVal)) filterKiller.value = kVal;
-    if (mVal && mapsSet.includes(mVal))    filterMap.value    = mVal;
+    toggleRowButtons(tr, true);
+  }
+  function cancelEditRow(tr){
+    toggleRowButtons(tr, false);
+    renderTable();
+  }
+  function saveEditRow(tr){
+    const id = tr.dataset.id;
+    const idx = entries.findIndex(e=>e.id===id); if (idx<0) return;
+    const r = entries[idx];
+
+    const get = col => tr.querySelector(`[data-col="${col}"] .cell-input`);
+    const whenVal = get('when').value;
+    const when = readWhenInput({value: whenVal});
+    const killerVal = (get('killer').value||'').trim();
+    const mapVal = (get('map').value||'').trim();
+    const oppVal = (get('opponent').value||'').trim();
+    const sideVal = normSide(get('side').value);
+    const resVal = normalizeResult(get('result').value);
+    const chaseVal = parseDurationToSeconds(get('chase').value);
+    const notesVal = (get('notes').value||'').trim();
+
+    if (!when || !killerVal || !mapVal || !oppVal) {
+      alert('Please fill Time, Killer, Map, and Opponent with valid values.');
+      return;
+    }
+    r.when = when.toISOString();
+    r.killer = killerVal;
+    r.map = mapVal;
+    r.opponent = oppVal;
+    r.side = sideVal;
+    r.result = resVal;
+    r.chaseSurvivor = sideVal==='Survivor' ? chaseVal : null;
+    r.chaseKiller   = sideVal==='Killer'   ? chaseVal : null;
+    r.notes = notesVal;
+
+    save();
+    toggleRowButtons(tr, false);
+    renderAll();
+  }
+  function toggleRowButtons(tr, editing){
+    const btnEdit = tr.querySelector('[data-action="edit"]');
+    const btnSave = tr.querySelector('[data-action="save"]');
+    const btnCancel = tr.querySelector('[data-action="cancel"]');
+    if (!btnEdit) return;
+    btnEdit.style.display = editing ? 'none' : '';
+    btnSave.style.display = editing ? '' : 'none';
+    btnCancel.style.display = editing ? '' : 'none';
   }
 
   // Sorting
@@ -467,131 +701,143 @@
   tableBody.addEventListener('click', (e)=>{
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
-    const id = btn.dataset.id;
-    const idx = entries.findIndex(r => r.id === id);
-    if (idx === -1) return;
-
+    const tr = btn.closest('tr');
     if (btn.dataset.action === 'del') {
-      if (confirm('Delete this entry?')) { entries.splice(idx,1); save(); renderAll(); }
-    } else if (btn.dataset.action === 'edit') {
-      const r = entries[idx];
-      const whenLocal = toLocalDatetimeInputValue(new Date(r.when));
-      const killerNew = prompt('Killer:', r.killer) ?? r.killer;
-      const mapNew    = prompt('Map:',    r.map)    ?? r.map;
-      const oppNew    = prompt('Opponent:', r.opponent) ?? r.opponent;
-      const sideNew   = prompt('Side (Killer/Survivor):', r.side || 'Killer') ?? (r.side || 'Killer');
-      const resNew    = prompt('Result (Win/Loss/Draw):', r.result || 'Draw') ?? (r.result || 'Draw');
-
-      const chaseCurrent = r.side==='Killer' ? r.chaseKiller : r.side==='Survivor' ? r.chaseSurvivor : null;
-      const chaseShown = chaseCurrent==null ? '' : formatSecondsToMMSS(chaseCurrent);
-      const chaseNew  = prompt('Chase Time (mm:ss or sec):', chaseShown) ?? chaseShown;
-
-      const whenNew   = prompt('Time (YYYY-MM-DDTHH:MM):', whenLocal) ?? whenLocal;
-      const notesNew  = prompt('Notes:', r.notes || '') ?? (r.notes || '');
-
-      // validate & apply
-      let d = null;
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(whenNew)) {
-        const [date, time] = whenNew.split('T');
-        const [Y,M,D] = date.split('-').map(Number);
-        const [H,Min] = time.split(':').map(Number);
-        d = new Date(Y, M-1, D, H, Min);
-      } else {
-        d = new Date(whenNew);
+      if (confirm('Delete this entry?')) {
+        const id = tr.dataset.id;
+        entries = entries.filter(r=>r.id!==id);
+        save(); renderAll();
       }
-      if (isNaN(d)) { alert('Invalid time.'); return; }
-      const sideNorm = normSide(sideNew);
-
-      r.killer = (killerNew || '').trim();
-      r.map = (mapNew || '').trim();
-      r.opponent = (oppNew || '').trim();
-      r.side = sideNorm;
-      r.result = normalizeResult(resNew);
-      r.when = d.toISOString();
-
-      const chaseVal = parseDurationToSeconds(chaseNew);
-      r.chaseSurvivor = sideNorm === 'Survivor' ? chaseVal : null;
-      r.chaseKiller   = sideNorm === 'Killer'   ? chaseVal : null;
-
-      r.notes = (notesNew || '').trim();
-      save(); renderAll();
+    } else if (btn.dataset.action === 'edit') {
+      toEditRow(tr);
+    } else if (btn.dataset.action === 'save') {
+      saveEditRow(tr);
+    } else if (btn.dataset.action === 'cancel') {
+      cancelEditRow(tr);
     }
   });
 
-  function normSide(s){
-    const t = String(s||'').toLowerCase();
-    if (t.startsWith('k')) return 'Killer';
-    if (t.startsWith('s')) return 'Survivor';
-    return 'Unknown';
-  }
-  function normalizeResult(s){
-    const t = (s||'').trim().toLowerCase();
-    if (t.startsWith('w')) return 'Win';
-    if (t.startsWith('l')) return 'Loss';
-    if (t.startsWith('d')) return 'Draw';
-    return 'Draw';
-  }
-  function fmtTime(iso){
-    const d = new Date(iso);
-    return isNaN(d) ? iso : d.toLocaleString();
-  }
-  function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function buildFilters(){
+    const killersSet = [...new Set(entries.map(e=>e.killer).filter(Boolean))].sort();
+    const mapsSet    = [...new Set(entries.map(e=>e.map).filter(Boolean))].sort();
 
-  // ===== JSON =====
-  $('#exportJson').addEventListener('click', ()=>{
+    const kVal = filterKiller.value, mVal = filterMap.value, sVal = filterSide.value, rVal = filterResult.value;
+
+    filterKiller.innerHTML = `<option value="">Filter: Killer (all)</option>` + killersSet.map(k=>`<option>${esc(k)}</option>`).join('');
+    filterMap.innerHTML    = `<option value="">Filter: Map (all)</option>` + mapsSet.map(m=>`<option>${esc(m)}</option>`).join('');
+
+    // keep selected values when rebuilding
+    if (kVal && killersSet.includes(kVal)) filterKiller.value = kVal;
+    if (mVal && mapsSet.includes(mVal))    filterMap.value    = mVal;
+    if (sVal) filterSide.value = sVal;
+    if (rVal) filterResult.value = rVal;
+  }
+
+  // --- Export & Import (buttons) ---
+  function markExported(){
+    localStorage.setItem(META_KEY, JSON.stringify({ lastExportAt: new Date().toISOString() }));
+    showBackupBanner();
+  }
+  function downloadBlob(text, filename, mime){
+    const blob = new Blob([text], {type:mime});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename; a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  function csvCell(s){ const t = String(s).replace(/"/g,'""'); return /[",\n]/.test(t) ? `"${t}"` : t; }
+  function stamp(){
+    const d = new Date(); const p = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }
+
+  // Export modal handlers
+  exportBtn.addEventListener('click', () => {
+    exportModal.style.display = 'grid';
+    exportModal.setAttribute('aria-hidden','false');
+  });
+  exportCancel.addEventListener('click', closeExport);
+  exportModal.addEventListener('click', (e) => {
+    if (e.target === exportModal) closeExport(); // click outside sheet closes
+  });
+  function closeExport(){
+    exportModal.style.display = 'none';
+    exportModal.setAttribute('aria-hidden','true');
+  }
+
+  // Export JSON
+  exportJson.addEventListener('click', ()=>{
     const payload = { schema: 'dbd1v1.v3', exportedAt: new Date().toISOString(), entries };
     downloadBlob(JSON.stringify(payload, null, 2), `dbd-1v1-tracker-${stamp()}.json`, 'application/json;charset=utf-8;');
+    closeExport(); markExported();
   });
-  $('#importJson').addEventListener('click', async ()=>{
-    const [file] = await openFile('.json,application/json'); if (!file) return;
-    try {
-      const text = await file.text();
-      const obj = JSON.parse(text);
-      const list = Array.isArray(obj) ? obj : (Array.isArray(obj.entries) ? obj.entries : []);
-      if (!Array.isArray(list)) throw new Error('JSON must be an array or {entries:[]}');
-      const byId = new Map(entries.map(e=>[e.id,e]));
-      let added=0, updated=0;
-      for (const r of list) {
-        const s = sanitize(r);
-        if (!s) continue;
-        if (byId.has(s.id)) { byId.set(s.id, s); updated++; }
-        else { byId.set(s.id, s); added++; }
-      }
-      entries = Array.from(byId.values());
-      save(); renderAll();
-      alert(`Imported ${added} new, updated ${updated}.`);
-    } catch (e) {
-      alert('Failed to import JSON: ' + e.message);
-    }
-  });
-
-  function sanitize(r){
-    try {
-      const id  = r.id || crypto.randomUUID();
-      const when = new Date(r.when || r.time || Date.now()); if (isNaN(when)) return null;
-      const killer = String(r.killer||'').trim();
-      const map    = String(r.map||'').trim();
-      const opponent = String(r.opponent||'').trim();
-      const side   = normSide(r.side || 'Unknown');
-      const result = normalizeResult(r.result || 'Draw');
-      const cs = r.chaseSurvivor == null ? null : Number(r.chaseSurvivor);
-      const ck = r.chaseKiller   == null ? null : Number(r.chaseKiller);
-      const notes = String(r.notes||'').trim();
-      if (!killer || !map || !opponent) return null;
-      return { id, when: when.toISOString(), killer, map, opponent, side, result, chaseSurvivor: cs, chaseKiller: ck, notes };
-    } catch { return null; }
-  }
-
-  // ===== CSV =====
-  $('#exportCsv').addEventListener('click', ()=>{
+  // Export CSV
+  exportCsv.addEventListener('click', ()=>{
     const header = ['id','when','killer','map','opponent','side','result','chaseSurvivor','chaseKiller','notes'];
     const lines = [header.join(',')];
     for (const r of entries) lines.push(header.map(k => csvCell(r[k] ?? '')).join(','));
     downloadBlob(lines.join('\n'), `dbd-1v1-tracker-${stamp()}.csv`, 'text/csv;charset=utf-8;');
+    closeExport(); markExported();
   });
-  $('#importCsv').addEventListener('click', async ()=>{
-    const [file] = await openFile('.csv,text/csv'); if (!file) return;
+
+  // Import (auto-detect JSON or CSV)
+  importBtn.addEventListener('click', async ()=>{
+    const [file] = await openFile('.json,.csv,application/json,text/csv'); if (!file) return;
+    const name = (file.name || '').toLowerCase();
     const text = await file.text();
+    try {
+      if (name.endsWith('.json')) {
+        importFromJson(text);
+      } else if (name.endsWith('.csv')) {
+        importFromCsv(text);
+      } else {
+        // Try to sniff
+        if (text.trim().startsWith('{') || text.trim().startsWith('[')) importFromJson(text);
+        else importFromCsv(text);
+      }
+    } catch (e) {
+      alert('Import failed: ' + e.message);
+    }
+  });
+
+  function importFromJson(text){
+    const obj = JSON.parse(text);
+    const list = Array.isArray(obj) ? obj : (Array.isArray(obj.entries) ? obj.entries : []);
+    if (!Array.isArray(list)) throw new Error('JSON must be an array or {entries:[]}');
+    const byId = new Map(entries.map(e=>[e.id,e]));
+    let added=0, updated=0;
+    for (const r of list) {
+      const s = sanitize(r);
+      if (!s) continue;
+      byId.set(s.id, s);
+      if (entries.find(e=>e.id===s.id)) updated++; else added++;
+    }
+    entries = Array.from(byId.values());
+    save(); renderAll();
+    alert(`Imported ${added} new, updated ${updated}.`);
+  }
+
+  function parseCsv(text){
+    const rows = []; let row = [], cell = '', inQ = false;
+    for (let i=0;i<text.length;i++){
+      const c = text[i], n = text[i+1];
+      if (inQ){
+        if (c === '"' && n === '"'){ cell += '"'; i++; }
+        else if (c === '"'){ inQ = false; }
+        else { cell += c; }
+      } else {
+        if (c === '"' ){ inQ = true; }
+        else if (c === ','){ row.push(cell); cell=''; }
+        else if (c === '\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
+        else if (c === '\r'){ }
+        else { cell += c; }
+      }
+    }
+    if (cell.length || row.length) { row.push(cell); rows.push(row); }
+    return rows;
+  }
+
+  function importFromCsv(text){
     const rows = parseCsv(text);
     const header = rows.shift() || [];
     const idx = (name) => header.indexOf(name);
@@ -599,8 +845,7 @@
           oIx=idx('opponent'), sIx=idx('side'), rIx=idx('result'),
           csIx=idx('chaseSurvivor'), ckIx=idx('chaseKiller'), nIx=idx('notes');
     if ([idIx,whenIx,kIx,mIx,oIx,sIx,rIx,csIx,ckIx,nIx].some(i=>i===-1)){
-      alert('CSV must include id,when,killer,map,opponent,side,result,chaseSurvivor,chaseKiller,notes');
-      return;
+      throw new Error('CSV must include id,when,killer,map,opponent,side,result,chaseSurvivor,chaseKiller,notes');
     }
     const byId = new Map(entries.map(e=>[e.id,e]));
     let added=0, updated=0;
@@ -624,29 +869,9 @@
     entries = Array.from(byId.values());
     save(); renderAll();
     alert(`Imported ${added} new, updated ${updated}.`);
-  });
-
-  // ===== Utils =====
-  function csvCell(s){ const t = String(s).replace(/"/g,'""'); return /[",\n]/.test(t) ? `"${t}"` : t; }
-  function parseCsv(text){
-    const rows = []; let row = [], cell = '', inQ = false;
-    for (let i=0;i<text.length;i++){
-      const c = text[i], n = text[i+1];
-      if (inQ){
-        if (c === '"' && n === '"'){ cell += '"'; i++; }
-        else if (c === '"'){ inQ = false; }
-        else { cell += c; }
-      } else {
-        if (c === '"' ){ inQ = true; }
-        else if (c === ','){ row.push(cell); cell=''; }
-        else if (c === '\n'){ row.push(cell); rows.push(row); row=[]; cell=''; }
-        else if (c === '\r'){ }
-        else { cell += c; }
-      }
-    }
-    if (cell.length || row.length) { row.push(cell); rows.push(row); }
-    return rows;
   }
+
+  // File helpers
   function openFile(accept){
     return new Promise((resolve)=>{
       const inp = document.createElement('input');
@@ -655,76 +880,153 @@
       inp.click();
     });
   }
-  function downloadBlob(text, filename, mime){
-    const blob = new Blob([text], {type:mime});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename; a.click();
-    URL.revokeObjectURL(a.href);
-  }
-  function stamp(){
-    const d = new Date(); const p = n => String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+
+  function sanitize(r){
+    try {
+      const id  = r.id || crypto.randomUUID();
+      const when = new Date(r.when || r.time || Date.now()); if (isNaN(when)) return null;
+      const killer = String(r.killer||'').trim();
+      const map    = String(r.map||'').trim();
+      const opponent = String(r.opponent||'').trim();
+      const side   = normSide(r.side || 'Unknown');
+      const result = normalizeResult(r.result || 'Draw');
+      const cs = r.chaseSurvivor == null ? null : Number(r.chaseSurvivor);
+      const ck = r.chaseKiller   == null ? null : Number(r.chaseKiller);
+      const notes = String(r.notes||'').trim();
+      if (!killer || !map || !opponent) return null;
+      return { id, when: when.toISOString(), killer, map, opponent, side, result, chaseSurvivor: cs, chaseKiller: ck, notes };
+    } catch { return null; }
   }
 
-  // ===== Stats =====
+  // Stats
   function renderStats(){
     const onlyWL = entries.filter(e => e.result === 'Win' || e.result === 'Loss');
     const wins = onlyWL.filter(e => e.result === 'Win').length;
     const losses = onlyWL.filter(e => e.result === 'Loss').length;
     const draws = entries.filter(e => e.result === 'Draw').length;
-    const winrate = onlyWL.length ? (wins/onlyWL.length)*100 : 0;
-    overallWinrate.textContent = onlyWL.length ? `${winrate.toFixed(1)}%` : '—';
+    const winrateOverall = onlyWL.length ? (wins/onlyWL.length)*100 : 0;
+    overallWinrate.textContent = onlyWL.length ? `${winrateOverall.toFixed(1)}%` : '—';
     overallDetail.textContent = `${wins}W / ${losses}L ${draws?`/ ${draws}D`:''} across ${entries.length} matches`;
 
+    // Streak (latest to earliest in time)
+    const sortedByTime = entries.slice().sort((a,b)=> b.when.localeCompare(a.when));
+    let streakType = null, streakLen = 0;
+    for (const r of sortedByTime){
+      if (r.result==='Draw') continue;
+      if (!streakType) { streakType = r.result; streakLen = 1; }
+      else if (r.result === streakType) { streakLen++; }
+      else break;
+    }
+    streakInfo.textContent = `Streak: ${streakLen? (streakType==='Win'? 'W':'L')+streakLen : '—'}`;
+
+    // Chase summary (both roles combined)
+    const allChase = entries.map(e => e.side==='Killer'? e.chaseKiller : e.side==='Survivor'? e.chaseSurvivor : null)
+      .filter(n => Number.isFinite(n));
+    const avgAll = allChase.length ? Math.round(allChase.reduce((a,b)=>a+b,0)/allChase.length) : null;
+    const medAll = median(allChase);
+    chaseSummary.textContent = allChase.length
+      ? `Avg ${formatSecondsToMMSS(avgAll)} • Median ${formatSecondsToMMSS(medAll)} • N=${allChase.length}`
+      : '—';
+    if (allChase.length){
+      const min = Math.min(...allChase), max = Math.max(...allChase);
+      chaseExtremes.textContent = `Shortest ${formatSecondsToMMSS(min)} • Longest ${formatSecondsToMMSS(max)}`;
+    } else {
+      chaseExtremes.textContent = '—';
+    }
+
+    // As Killer (you played killer)
     const asKiller = entries.filter(e => e.side === 'Killer');
     tableAsKiller.innerHTML = buildAggTable(
       groupBy(asKiller, e => e.killer),
       row => ({
         label: row.key,
-        played: row.items.filter(e => e.result === 'Win' || e.result === 'Loss').length,
-        wins: row.items.filter(e => e.result === 'Win').length,
-        losses: row.items.filter(e => e.result === 'Loss').length,
-        winrate: pct(row.items.filter(e => e.result !== 'Draw'), e => e.result === 'Win'),
-        avgChase: avgSec(row.items.map(e => e.chaseKiller).filter(n=>Number.isFinite(n)))
+        played: row.items.filter(e => e.result==='Win'||e.result==='Loss').length,
+        wins: row.items.filter(e => e.result==='Win').length,
+        losses: row.items.filter(e => e.result==='Loss').length,
+        winrate: pctFmt(winrate(row.items)),
+        avgChase: avgSec(row.items.map(e=>e.chaseKiller).filter(Number.isFinite)),
+        medChase: medSec(row.items.map(e=>e.chaseKiller).filter(Number.isFinite))
       }),
-      ['Killer','Played','Wins','Losses','Win%','Avg chase']
+      ['Killer','Played','Wins','Losses','Win%','Avg chase','Med chase']
     );
 
+    // Versus Killer (you were survivor)
     const vsKiller = entries.filter(e => e.side === 'Survivor');
     tableVsKiller.innerHTML = buildAggTable(
       groupBy(vsKiller, e => e.killer),
       row => ({
         label: row.key,
-        played: row.items.filter(e => e.result === 'Win' || e.result === 'Loss').length,
-        wins: row.items.filter(e => e.result === 'Win').length,
-        losses: row.items.filter(e => e.result === 'Loss').length,
-        winrate: pct(row.items.filter(e => e.result !== 'Draw'), e => e.result === 'Win'),
-        avgChase: avgSec(row.items.map(e => e.chaseSurvivor).filter(n=>Number.isFinite(n)))
+        played: row.items.filter(e => e.result==='Win'||e.result==='Loss').length,
+        wins: row.items.filter(e => e.result==='Win').length,
+        losses: row.items.filter(e => e.result==='Loss').length,
+        winrate: pctFmt(winrate(row.items)),
+        avgChase: avgSec(row.items.map(e=>e.chaseSurvivor).filter(Number.isFinite)),
+        medChase: medSec(row.items.map(e=>e.chaseSurvivor).filter(Number.isFinite))
       }),
-      ['Killer','Played','Wins','Losses','Win%','Avg chase']
+      ['Killer','Played','Wins','Losses','Win%','Avg chase','Med chase']
+    );
+
+    // Per-map winrate (both sides)
+    tablePerMap.innerHTML = buildAggTable(
+      groupBy(entries, e => e.map),
+      row => ({
+        label: row.key,
+        played: row.items.filter(e => e.result==='Win'||e.result==='Loss').length,
+        wins: row.items.filter(e => e.result==='Win').length,
+        losses: row.items.filter(e => e.result==='Loss').length,
+        winrate: pctFmt(winrate(row.items))
+      }),
+      ['Map','Played','Wins','Losses','Win%']
+    );
+
+    // Per-killer combined overview (avg chase on both sides + best/worst map)
+    const byKillerAll = groupBy(entries, e => e.killer);
+    tablePerKillerCombo.innerHTML = buildAggTable(
+      byKillerAll,
+      row => {
+        const items = row.items;
+        const asK = items.filter(e=>e.side==='Killer');
+        const vsK = items.filter(e=>e.side==='Survivor');
+
+        const avgK = avgSec(asK.map(e=>e.chaseKiller).filter(Number.isFinite));
+        const avgS = avgSec(vsK.map(e=>e.chaseSurvivor).filter(Number.isFinite));
+
+        // group by map across ALL matches with this killer (both sides)
+        const byMap = groupBy(items, it => it.map).map(g => {
+          const wr = winrate(g.items);
+          const nWl = g.items.filter(x=>x.result==='Win'||x.result==='Loss').length;
+          return { map: g.key, wr, nWl };
+        }).filter(x => x.nWl > 0);
+
+        let best = '—', worst = '—';
+        if (byMap.length) {
+          const desc = byMap.slice().sort((a,b)=> (b.wr??-1)-(a.wr??-1) || b.nWl - a.nWl || a.map.localeCompare(b.map));
+          const asc  = byMap.slice().sort((a,b)=> (a.wr??999)-(b.wr??999) || b.nWl - a.nWl || a.map.localeCompare(b.map));
+          const b = desc[0], w = asc[0];
+          best  = `${b.map} (${pctFmt(b.wr)}; n=${b.nWl})`;
+          worst = `${w.map} (${pctFmt(w.wr)}; n=${w.nWl})`;
+        }
+
+        return {
+          label: row.key,
+          avgKillerChase: avgK,
+          avgSurvChase: avgS,
+          bestMap: best,
+          worstMap: worst
+        };
+      },
+      ['Killer','Avg chase (K)','Avg chase (S)','Best Map','Worst Map']
     );
   }
-  function groupBy(arr, keyFn){
-    const map = new Map();
-    for (const it of arr){
-      const k = keyFn(it);
-      if (!map.has(k)) map.set(k, []);
-      map.get(k).push(it);
-    }
-    return Array.from(map.entries()).map(([key,items])=>({key,items}))
-      .sort((a,b)=>String(a.key).localeCompare(String(b.key)));
-  }
-  function pct(list, winPred){
-    const base = list.length;
-    if (!base) return '—';
-    const w = list.filter(winPred).length;
-    return `${((w/base)*100).toFixed(1)}%`;
-  }
+
   function avgSec(nums){
     if (!nums.length) return '—';
     const s = nums.reduce((a,b)=>a+b,0);
     return formatSecondsToMMSS(Math.round(s/nums.length));
+  }
+  function medSec(nums){
+    if (!nums.length) return '—';
+    return formatSecondsToMMSS(median(nums));
   }
   function buildAggTable(rows, mapRow, headers){
     if (rows.length === 0) return `<div class="muted">No data yet.</div>`;
@@ -733,11 +1035,16 @@
     const body = `<tbody>${mapped.map(r=>`
       <tr>
         <td style="padding:8px 6px;">${esc(r.label)}</td>
-        <td style="padding:8px 6px;">${esc(r.played)}</td>
-        <td style="padding:8px 6px;">${esc(r.wins)}</td>
-        <td style="padding:8px 6px;">${esc(r.losses)}</td>
-        <td style="padding:8px 6px;">${esc(r.winrate)}</td>
-        <td style="padding:8px 6px;">${esc(r.avgChase)}</td>
+        ${r.played!==undefined ? `<td style="padding:8px 6px;">${esc(r.played)}</td>` : ''}
+        ${r.wins!==undefined ? `<td style="padding:8px 6px;">${esc(r.wins)}</td>` : ''}
+        ${r.losses!==undefined ? `<td style="padding:8px 6px;">${esc(r.losses)}</td>` : ''}
+        ${r.winrate!==undefined ? `<td style="padding:8px 6px;">${esc(r.winrate)}</td>` : ''}
+        ${r.avgChase!==undefined ? `<td style="padding:8px 6px;">${esc(r.avgChase)}</td>` : ''}
+        ${r.medChase!==undefined ? `<td style="padding:8px 6px;">${esc(r.medChase)}</td>` : ''}
+        ${r.avgKillerChase!==undefined ? `<td style="padding:8px 6px;">${esc(r.avgKillerChase)}</td>` : ''}
+        ${r.avgSurvChase!==undefined ? `<td style="padding:8px 6px;">${esc(r.avgSurvChase)}</td>` : ''}
+        ${r.bestMap!==undefined ? `<td style="padding:8px 6px;">${esc(r.bestMap)}</td>` : ''}
+        ${r.worstMap!==undefined ? `<td style="padding:8px 6px;">${esc(r.worstMap)}</td>` : ''}
       </tr>`).join('')}</tbody>`;
     return `<table style="width:100%;border-collapse:collapse;border:1px solid var(--panel-border);">${head}${body}</table>`;
   }
